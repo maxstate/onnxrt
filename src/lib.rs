@@ -36,8 +36,8 @@ use onnxrt_sys::{
         ONNX_TENSOR_ELEMENT_DATA_TYPE_UINT8, ONNX_TENSOR_ELEMENT_DATA_TYPE_UNDEFINED,
     },
     ONNXType::ONNX_TYPE_UNKNOWN,
-    OrtAllocator, OrtApi, OrtArenaCfg, OrtCustomCreateThreadFn, OrtCustomJoinThreadFn, OrtEnv,
-    OrtGetApiBase, OrtIoBinding, OrtLoggingFunction,
+    OrtAllocator, OrtApi, OrtArenaCfg, OrtCUDAProviderOptionsV2, OrtCustomCreateThreadFn,
+    OrtCustomJoinThreadFn, OrtEnv, OrtGetApiBase, OrtIoBinding, OrtLoggingFunction,
     OrtMemType::OrtMemTypeDefault,
     OrtMemoryInfo, OrtModelMetadata, OrtRunOptions, OrtSession, OrtSessionOptions,
     OrtTensorTypeAndShapeInfo, OrtThreadingOptions, OrtTypeInfo, OrtValue,
@@ -440,6 +440,19 @@ impl Drop for RunOptions {
         unsafe {
             ORT_API.ReleaseRunOptions.unwrap()(self.raw.as_ptr());
         }
+    }
+}
+
+#[derive(Debug)]
+pub struct CUDAProviderOption {
+    raw: NonNull<OrtCUDAProviderOptionsV2>,
+}
+
+impl CUDAProviderOption {
+    pub fn new() -> Self {
+        let mut options = ptr::null_mut::<OrtCUDAProviderOptionsV2>();
+        panic_on_error!(ORT_API.CreateCUDAProviderOptions.unwrap()(&mut options));
+        Self { raw: NonNull::new(options).unwrap() }
     }
 }
 
@@ -959,6 +972,17 @@ impl SessionOptions {
             provider_options_keys.len()
         ));
         Ok(self)
+    }
+
+    pub fn append_execution_provider_cuda_v2(
+        &mut self,
+        cuda_option: &CUDAProviderOption,
+    ) -> self::Result<()> {
+        bail_on_error!(ORT_API.SessionOptionsAppendExecutionProvider_CUDA_V2.unwrap()(
+            self.raw.as_ptr(),
+            cuda_option.raw.as_ptr()
+        ));
+        Ok(())
     }
 }
 
